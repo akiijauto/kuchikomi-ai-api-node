@@ -222,6 +222,18 @@ docker run --rm -p 3000:3000 -e JWT_SECRET=... kuchikomi-node
 `/api/health` が応答すること・`HEALTHCHECK` が `healthy` になること・
 `USER` が `node` であることまで確かめている（ビルドが通ることと、起動して応答することは別）。
 
+実行イメージは **240MB**（CIで実測）。5実装の中では最も大きい。
+
+| 実装 | 実行イメージ | ベース |
+| --- | --- | --- |
+| Go | 17.8MB | distroless static |
+| Next.js | 202MB | node |
+| **Node.js** | **240MB** | node:24-bookworm-slim |
+
+Go版と比べて13倍あるのは、ランタイムをイメージに同梱するかどうかの差。
+Goは静的リンクしたバイナリ1つで足りるが、Node.jsはインタプリタと `node_modules` が要る。
+distroless の nodejs イメージに載せ替えれば減らせるはずだが、**まだ試していない**。
+
 ## ライセンス
 
 MIT
