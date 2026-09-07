@@ -1,0 +1,18 @@
+# 依存の実体は追跡しない。package-lock.json があれば同じ構成を再現できる。
+# lock のほうは追跡する（アプリなので、誰が入れても同じ版が入るようにする）。
+node_modules/
+
+# 秘密情報は絶対にコミットしない
+.env
+.env.*
+!.env.example
+
+# エディタ・OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# 実行時の生成物
+*.log
+coverage/

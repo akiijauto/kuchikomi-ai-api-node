@@ -1,0 +1,21 @@
+{
+  "name": "kuchikomi-ai-api-node",
+  "version": "1.0.0",
+  "description": "クチコミ返信AIのAPIをNode.js(素のJavaScript)で実装したもの。同じ仕様のNext.js版・Rails版・Go版・PHP版がある",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.124.0",
+    "jose": "^6.2.12",
+    "pg": "^8.23.0"
+  }
+}

@@ -1,0 +1,112 @@
+name: CI
+
+# このリポジトリは「クチコミ返信AI」のAPIを Node.js（素のJavaScript）で実装したもの。
+# テーブル定義の正本はここには置かず、元リポジトリ（kuchikomi-ai-multi-stack）の
+# web/supabase/schema.sql のままにしてある。同じ定義に複数言語の実装を載せるのが主旨で、
+# 定義を複製すると「どちらが正なのか」が分からなくなるため（Go版・Rails版・PHP版と同じ方針）。
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: テスト（Node.js ${{ matrix.node }}）
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 22 を含めているのは、JSON.parse のソーステキスト参照
+        # （5.0 と 5 の区別。src/http/json.js 参照）が効く最小の版を
+        # 実際に確かめるため。効かない版があれば test/json.test.js が落ちる。
+        node: ["22", "24"]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Node.js ${{ matrix.node }} をセットアップ
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - name: 依存関係のインストール
+        run: npm ci
+
+      - name: 構文チェック（src/ と test/ の全JSファイル）
+        run: |
+          status=0
+          while IFS= read -r -d '' file; do
+            node --check "$file" || status=1
+          done < <(find src test -type f -name '*.js' -print0)
+          exit "$status"
+
+      - name: テスト
+        run: npm test
+
+  docker:
+    name: Dockerイメージのビルドと死活確認
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: イメージをビルド
+        env:
+          DOCKER_BUILD_SUMMARY: "false"
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: kuchikomi-node:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: イメージサイズを記録
+        run: docker image ls kuchikomi-node:ci
+
+      - name: コンテナを起動して /api/health を確かめる
+        # ビルドが通ることと、起動して応答することは別。
+        # DBが無くても死活監視だけは通る作りになっていること自体を確かめている
+        # （そうでないと「アプリは生きているがDBが不調」を切り分けられない）。
+        run: |
+          docker run -d --name ci-check -p 3000:3000 \
+            -e JWT_SECRET="$(head -c 32 /dev/urandom | base64 | head -c 48)" \
+            kuchikomi-node:ci
+
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:3000/api/health; then
+              echo
+              echo "起動を確認"
+              break
+            fi
+            if [ "$i" = "30" ]; then
+              echo "起動しませんでした"
+              docker logs ci-check
+              exit 1
+            fi
+            sleep 1
+          done
+
+      - name: HEALTHCHECK が healthy になることを確かめる
+        run: |
+          for i in $(seq 1 60); do
+            status=$(docker inspect -f '{{.State.Health.Status}}' ci-check)
+            echo "health: $status"
+            [ "$status" = "healthy" ] && exit 0
+            [ "$status" = "unhealthy" ] && { docker logs ci-check; exit 1; }
+            sleep 2
+          done
+          docker logs ci-check
+          exit 1
+
+      - name: 非rootで動いていることを確かめる
+        run: |
+          user=$(docker inspect -f '{{.Config.User}}' kuchikomi-node:ci)
+          echo "USER=$user"
+          [ "$user" = "node" ]
+
+      - name: 後片付け
+        if: always()
+        run: docker rm -f ci-check || true

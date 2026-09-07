@@ -1,0 +1,25 @@
+# ビルドに要らないものを送らない（コンテキスト削減＋秘密情報をイメージに入れない）
+.env
+.env.*
+!.env.example
+
+.git
+.github
+
+# 依存関係はビルドステージで npm ci しなおすため、ホスト側の node_modules は
+# コンテキストに含めない（転送量の削減。package-lock.json はビルドステージが
+# 読むので除外しない）
+node_modules
+
+test
+db
+
+Dockerfile
+.dockerignore
+README.md
+
+# OS・エディタ
+.DS_Store
+Thumbs.db
+.idea
+.vscode
