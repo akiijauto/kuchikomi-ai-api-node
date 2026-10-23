@@ -44,7 +44,9 @@ export async function readRequest(req) {
   let size = 0;
   let tooLarge = false;
 
-  for await (const chunk of req) {
+  // 既定の async iterator は break 時にリクエストを破棄する。
+  // 超過応答を返す前に接続を閉じないよう、破棄を抑えて残りを捨てる。
+  for await (const chunk of req.iterator({ destroyOnReturn: false })) {
     size += chunk.length;
     if (size > MAX_BODY_BYTES) {
       tooLarge = true;
