@@ -237,3 +237,13 @@ distroless の nodejs イメージに載せ替えれば減らせるはずだが�
 ## ライセンス
 
 MIT
+
+
+## 2026-10-23 本文超過時のストリーム寿命（PDCA-300-001 / 051）
+
+本文上限を超えて読み取りを止めても、超過応答を返す前に接続を破棄しない。
+既定の非同期反復はbreakでストリームを破棄するため、iterator({destroyOnReturn:false})を使い、既存のresumeで残りを読み捨てる。
+[Node.js公式のiterator仕様](https://nodejs.org/api/stream.html#readableiteratoroptions)と、実IncomingMessage＋メモリ内PassThroughで確認した。
+固定3件は旧3失敗→新3成功。既存86件と境界値6件を含む*.test.jsの全95件成功・skip0。
+Node v24.16.0、一時sourceコピーと既存node_modulesを使用。TCP/子processを拒否し、実AI/DB/資格情報/実利用者の本文/本番サーバーは使わない。
+実TCPでの413配送・Node22実機・全Slowloris/abort条件・負荷/配備は未検証。認証・利用上限・モデル設定は変更しない。
